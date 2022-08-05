@@ -1,20 +1,17 @@
-        img = x.detach().cpu().numpy()
-        y_pred = y_pred.detach().cpu().numpy()
 
-        n, c, w, h = img.shape
-        n = int(n ** 0.5)
-
-        img = img[:n * n]
-        img = img.reshape(n, n, c, h, w).transpose(0, 3, 1, 4, 2).reshape(n * h, n * w, c)
-        img = cv2.cvtColor(np.uint8(img * 255), cv2.COLOR_RGB2BGR)
-
-        y_pred = y_pred[:n * n]
-        y_pred = y_pred.reshape(n, n, 1, h, w).transpose(0, 3, 1, 4, 2).reshape(n * h, n * w, 1)
-        y_pred = cv2.cvtColor(np.uint8(y_pred * 255), cv2.COLOR_GRAY2BGR)
-
-        # img = cv2.addWeighted(img, 0.5, y_pred, 0.5, 0)
-
-        y_pred = cv2.threshold(y_pred[:, :, 0], 128, 255, 0)[1]
-        contours = cv2.findContours(y_pred, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
-        for i in range(len(contours)):
-            cv2.drawContours(img, contours, i, (0, 255, 0), 1, 16)
+        if len(self.model.loss) >= 2:
+            w, h = self.label_graph.width(), self.label_graph.height()
+            img = np.full((h, w, 3), 100, np.uint8)
+            max = np.max(self.model.loss)
+            min = np.min(self.model.loss)
+            loss = [(i - min) / (max - min) for i in self.model.loss]
+            for i in range(len(loss) - 1):
+                cv2.line(img,
+                         (int(i / self.model.args.num_epochs * w),
+                          int(loss[i] * h) + 10),
+                         (int((i + 1) / self.model.args.num_epochs * w),
+                          int(loss[i + 1] * h) + 10),
+                         (0, 0, 255), 1, 16)
+            img = cv2.flip(img, 0)
+            cv2.putText(img, 'train loss', (10, h - 10), 0, 0.5, (255, 255, 255), 1, 16)
+            self.label_graph.setPixmap(QPixmap.fromImage(QImage(img.data, w, h, w * 3, QImage.Format_BGR888)))
